@@ -16,146 +16,138 @@ using GameObjectSpawnId = Variant<Hyperlink<gameobject>, ObjectGuid::LowType>;
 
 
 bool ObjscaleAnnounceModule;
-class Objscale_conf : public WorldScript
-{
-public:
-    Objscale_conf() : WorldScript("Objscale_conf") { }
 
-    void OnBeforeConfigLoad(bool /*reload*/) override
-    {
+class Objscale_conf : public WorldScript {
+public:
+    Objscale_conf() : WorldScript("Objscale_conf") {}
+
+    void OnBeforeConfigLoad(bool /*reload*/) override {
         ObjscaleAnnounceModule = sConfigMgr->GetOption<bool>("Objscale.Announce", 1);
     }
 };
 
 
-class Objscale_Announce : public PlayerScript
-{
+class Objscale_Announce : public PlayerScript {
 public:
 
     Objscale_Announce() : PlayerScript("Objscale_Announce") {}
 
-    void OnLogin(Player* player)
-    {
+    void OnLogin(Player *player) {
         // Announce Module
-        if (ObjscaleAnnounceModule)
-        {
+        if (ObjscaleAnnounceModule) {
             ChatHandler(player->GetSession()).SendSysMessage("This server is running the |cff4CFF00Objscale |rmodule");
         }
     }
 };
 
 
-class CreatureScale : public AllCreatureScript
-{
+class CreatureScale : public AllCreatureScript {
 public:
     CreatureScale() : AllCreatureScript("CreatureScale") {}
 
-    void OnCreatureAddWorld(Creature* creature) override
-    {
-        std::string query = "SELECT `scale` FROM `objscale_creature` WHERE `guid` = " + std::to_string(creature->GetSpawnId()) + ";";
+    void OnCreatureAddWorld(Creature *creature) override {
+        std::string query =
+                "SELECT `scale` FROM `objscale_creature` WHERE `guid` = " + std::to_string(creature->GetSpawnId()) +
+                ";";
         QueryResult result = WorldDatabase.Query(query);
 
         if (!result) {}
         else {
-            Field* fields = result->Fetch();
-            float  scale = fields[0].Get<float>();
-            if (scale > 0)
-            {
+            Field *fields = result->Fetch();
+            float scale = fields[0].Get<float>();
+            if (scale > 0) {
                 creature->CustomData.Set("scale", new Objscale(scale));
                 creature->SetObjectScale(scale);
             }
         }
     }
 
-    void OnCreatureSaveToDB(Creature* creature) override
-    {
+    void OnCreatureSaveToDB(Creature *creature) override {
         float scale = creature->CustomData.GetDefault<Objscale>("scale")->scale;
 
         if (scale > 0.0f) {
-            std::string query = "REPLACE INTO `objscale_creature` (`guid`, `scale`) VALUES(" + std::to_string(creature->GetSpawnId()) + "," + std::to_string(scale) + ");";
+            std::string query = "REPLACE INTO `objscale_creature` (`guid`, `scale`) VALUES(" +
+                                std::to_string(creature->GetSpawnId()) + "," + std::to_string(scale) + ");";
             WorldDatabase.DirectExecute(query);
-        }
-        else {
-            std::string query = "DELETE FROM `objscale_creature` WHERE `guid` = " + std::to_string(creature->GetSpawnId()) + ";";
+        } else {
+            std::string query =
+                    "DELETE FROM `objscale_creature` WHERE `guid` = " + std::to_string(creature->GetSpawnId()) + ";";
             WorldDatabase.DirectExecute(query);
         }
     }
 };
 
-class GameObjectScale : public AllGameObjectScript
-{
+class GameObjectScale : public AllGameObjectScript {
 public:
     GameObjectScale() : AllGameObjectScript("GameObjectScale") {}
 
-    void OnGameObjectAddWorld(GameObject* gameObject)  override
-    {
-        std::string query = "SELECT `scale` FROM `objscale_gameobject` WHERE `guid` = " + std::to_string(gameObject->GetSpawnId()) + ";";
+    void OnGameObjectAddWorld(GameObject *gameObject) override {
+        std::string query =
+                "SELECT `scale` FROM `objscale_gameobject` WHERE `guid` = " + std::to_string(gameObject->GetSpawnId()) +
+                ";";
         QueryResult result = WorldDatabase.Query(query);
 
         if (!result) {}
         else {
-            Field* fields = result->Fetch();
-            float  scale = fields[0].Get<float>();
-            if (scale > 0.0f)
-            {
+            Field *fields = result->Fetch();
+            float scale = fields[0].Get<float>();
+            if (scale > 0.0f) {
                 gameObject->CustomData.Set("scale", new Objscale(scale));
                 gameObject->SetObjectScale(scale);
             }
         }
     }
 
-    void OnGameObjectSaveToDB(GameObject* gameObject)  override
-    {
+    void OnGameObjectSaveToDB(GameObject *gameObject) override {
         float scale = gameObject->CustomData.GetDefault<Objscale>("scale")->scale;
 
         if (scale > 0.0f) {
-            std::string query = "REPLACE INTO `objscale_gameobject` (`guid`, `scale`) VALUES(" + std::to_string(gameObject->GetSpawnId()) + "," + std::to_string(scale) + ");";
+            std::string query = "REPLACE INTO `objscale_gameobject` (`guid`, `scale`) VALUES(" +
+                                std::to_string(gameObject->GetSpawnId()) + "," + std::to_string(scale) + ");";
             WorldDatabase.DirectExecute(query);
-        }
-        else {
-            std::string query = "DELETE FROM `objscale_gameobject` WHERE `guid` = " + std::to_string(gameObject->GetSpawnId()) + ";";
+        } else {
+            std::string query =
+                    "DELETE FROM `objscale_gameobject` WHERE `guid` = " + std::to_string(gameObject->GetSpawnId()) +
+                    ";";
             WorldDatabase.DirectExecute(query);
         }
     }
 };
 
-class Objscale_Creature_command : public CommandScript
-{
+class Objscale_Creature_command : public CommandScript {
 public:
     Objscale_Creature_command() : CommandScript("Objscale_Creature_command") {}
-    std::vector<ChatCommand> GetCommands() const override
-    {
-        static std::vector<ChatCommand> ObjscaleCreatureCommandTable = {
 
-            {"set",         SEC_PLAYER, false, &HandleSetCommand, ""},
-            {"reset",       SEC_PLAYER, false, &HandleReSetCommand, ""},
-            { "",           SEC_PLAYER, false, &HandleBaseCommand,""}
+    ChatCommandTable GetCommands() const override {
+        static ChatCommandTable ObjscaleCreatureCommandTable = {
+
+                {"set",   HandleSetCommand,   SEC_PLAYER, Console::No},
+                {"reset", HandleReSetCommand, SEC_PLAYER, Console::No},
+                {"",      HandleBaseCommand,  SEC_PLAYER, Console::No}
         };
 
-        static std::vector<ChatCommand> ObjscaleCreatureCommandBaseTable = {
-            {"npc_scale", SEC_PLAYER, false, nullptr, "", ObjscaleCreatureCommandTable}
+        static ChatCommandTable ObjscaleCreatureCommandBaseTable = {
+                {"npc_scale", ObjscaleCreatureCommandTable }
         };
 
         return ObjscaleCreatureCommandBaseTable;
     }
 
-    static bool HandleSetCommand(ChatHandler* handler, float scale)
-    {
+    static bool HandleSetCommand(ChatHandler *handler, float scale) {
         if (!scale)
             return false;
 
-        Player* me = handler->GetSession()->GetPlayer();
+        Player *me = handler->GetSession()->GetPlayer();
         if (!me)
             return false;
 
-        Unit* unit = handler->getSelectedUnit();
-        if (!unit || unit->GetTypeId() != TYPEID_UNIT)
-        {
+        Unit *unit = handler->getSelectedUnit();
+        if (!unit || unit->GetTypeId() != TYPEID_UNIT) {
             handler->SendSysMessage(LANG_SELECT_CREATURE);
             handler->SetSentErrorMessage(true);
             return false;
         }
-        Creature* creature = unit->ToCreature();
+        Creature *creature = unit->ToCreature();
         if (scale > 0) {
             creature->CustomData.GetDefault<Objscale>("scale")->scale = scale;
 
@@ -165,26 +157,24 @@ public:
 
             me->GetSession()->SendAreaTriggerMessage("Creature scale has been updatet to %f", scale);
             return true;
-        }
-        else {
+        } else {
             me->GetSession()->SendAreaTriggerMessage("scale has to be greater than 0.");
             return false;
         }
     }
-    static bool HandleReSetCommand(ChatHandler* handler)
-    {
-        Player* me = handler->GetSession()->GetPlayer();
+
+    static bool HandleReSetCommand(ChatHandler *handler) {
+        Player *me = handler->GetSession()->GetPlayer();
         if (!me)
             return false;
 
-        Unit* unit = handler->getSelectedUnit();
-        if (!unit || unit->GetTypeId() != TYPEID_UNIT)
-        {
+        Unit *unit = handler->getSelectedUnit();
+        if (!unit || unit->GetTypeId() != TYPEID_UNIT) {
             handler->SendSysMessage(LANG_SELECT_CREATURE);
             handler->SetSentErrorMessage(true);
             return false;
         }
-        Creature* creature = unit->ToCreature();
+        Creature *creature = unit->ToCreature();
 
         creature->CustomData.GetDefault<Objscale>("scale")->scale = -1.0f;
         float scale = creature->GetCreatureTemplate()->scale;
@@ -196,19 +186,18 @@ public:
         return true;
 
     }
-    static bool HandleBaseCommand(ChatHandler* handler, char const* args)
-    {
+
+    static bool HandleBaseCommand(ChatHandler *handler, char const *args) {
 
         if (!*args)
             return false;
 
-        Player* me = handler->GetSession()->GetPlayer();
+        Player *me = handler->GetSession()->GetPlayer();
         if (!me)
             return false;
 
-        Unit* unit = handler->getSelectedUnit();
-        if (!unit || unit->GetTypeId() != TYPEID_UNIT)
-        {
+        Unit *unit = handler->getSelectedUnit();
+        if (!unit || unit->GetTypeId() != TYPEID_UNIT) {
             handler->SendSysMessage(LANG_SELECT_CREATURE);
             handler->SetSentErrorMessage(true);
             return false;
@@ -219,39 +208,38 @@ public:
     }
 };
 
-class Objscale_GameObject_command : public CommandScript
-{
+class Objscale_GameObject_command : public CommandScript {
 public:
     Objscale_GameObject_command() : CommandScript("Objscale_GameObject_command") {}
-    std::vector<ChatCommand> GetCommands() const override
-    {
-        static std::vector<ChatCommand> ObjscaleCreatureCommandTable = {
 
-            {"set", SEC_PLAYER, false, &HandleSetCommand, ""},
-            {"reset", SEC_PLAYER, false, &HandleReSetCommand, ""},
-            { "",           SEC_PLAYER, false, &HandleBaseCommand,        "" }
+    ChatCommandTable GetCommands() const override {
+        static ChatCommandTable ObjscaleGameObjectCommandTable = {
+
+                {"set",  HandleSetCommand,   SEC_PLAYER,Console::No},
+                {"reset",HandleReSetCommand, SEC_PLAYER,Console::No},
+                {"",     HandleBaseCommand,  SEC_PLAYER,Console::No}
         };
 
-        static std::vector<ChatCommand> ObjscaleCreatureCommandBaseTable = {
-            {"gob_scale", SEC_PLAYER, false, nullptr, "", ObjscaleCreatureCommandTable}
+        static ChatCommandTable ObjscaleGameObjectCommandBaseTable = {
+                {"gob_scale", ObjscaleGameObjectCommandTable}
         };
 
-        return ObjscaleCreatureCommandBaseTable;
+        return ObjscaleGameObjectCommandBaseTable;
     }
-    static bool HandleSetCommand(ChatHandler* handler, GameObjectSpawnId guidLow, float scale)
-    {
+
+    static bool HandleSetCommand(ChatHandler *handler, GameObjectSpawnId guidLow, float scale) {
         if (!guidLow)
             return false;
 
         if (!scale)
             return false;
 
-        Player* me = handler->GetSession()->GetPlayer();
+        Player *me = handler->GetSession()->GetPlayer();
         if (!me)
             return false;
 
 
-        GameObject* object = handler->GetObjectFromPlayerMapByDbGuid(guidLow);
+        GameObject *object = handler->GetObjectFromPlayerMapByDbGuid(guidLow);
         if (!object) {
             handler->PSendSysMessage(LANG_COMMAND_OBJNOTFOUND, uint32(guidLow));
             handler->SetSentErrorMessage(true);
@@ -268,23 +256,21 @@ public:
 
             me->GetSession()->SendAreaTriggerMessage("Object scale has been updatet to %f", scale);
             return true;
-        }
-        else {
+        } else {
             me->GetSession()->SendAreaTriggerMessage("scale has to be greater than 0.");
             return false;
         }
     }
 
-    static bool HandleReSetCommand(ChatHandler* handler, GameObjectSpawnId guidLow)
-    {
+    static bool HandleReSetCommand(ChatHandler *handler, GameObjectSpawnId guidLow) {
         if (!guidLow)
             return false;
 
-        Player* me = handler->GetSession()->GetPlayer();
+        Player *me = handler->GetSession()->GetPlayer();
         if (!me)
             return false;
 
-        GameObject* object = handler->GetObjectFromPlayerMapByDbGuid(guidLow);
+        GameObject *object = handler->GetObjectFromPlayerMapByDbGuid(guidLow);
         if (!object) {
             handler->PSendSysMessage(LANG_COMMAND_OBJNOTFOUND, uint32(guidLow));
             handler->SetSentErrorMessage(true);
@@ -304,12 +290,11 @@ public:
         return true;
     }
 
-    static bool HandleBaseCommand(ChatHandler* handler, char const* args)
-    {
+    static bool HandleBaseCommand(ChatHandler *handler, char const *args) {
         if (!*args)
             return false;
 
-        Player* me = handler->GetSession()->GetPlayer();
+        Player *me = handler->GetSession()->GetPlayer();
         if (!me)
             return false;
 
@@ -320,8 +305,7 @@ public:
 };
 
 // Add all scripts in one
-void AddObjscaleScripts()
-{
+void AddObjscaleScripts() {
     new CreatureScale();
     new Objscale_Creature_command();
     new GameObjectScale();
